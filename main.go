@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
+	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"
+	"go-license-altera/api/v1"
 	"go-license-altera/businesses/client"
 	"go-license-altera/businesses/license"
 	"go-license-altera/businesses/product"
@@ -12,24 +15,37 @@ import (
 )
 
 var (
-	config         = configuration.GetConfig()
-	dbGormPostgres = database.NewDatabaseConnection(config)
+	config       = configuration.GetConfig()
+	dbConnection = database.NewDatabaseConnection(config)
+	e            = echo.New()
 )
 
 func main() {
-	defer database.CloseDatabaseConnection(dbGormPostgres)
+	defer database.CloseDatabaseConnection(dbConnection)
 
 	migrateDatabase()
+
+	api.Controller(e)
+
+	runServer()
 
 }
 
 func migrateDatabase() {
-	dbGormPostgres.AutoMigrate(
+	dbConnection.AutoMigrate(
 		product.Product{},
 		license.License{},
 		client.Client{},
 		user_info.UserInfo{},
 	)
 
-	log.Info("Success migrate database, " + strconv.Itoa(int(dbGormPostgres.RowsAffected)) + " row affected.")
+	log.Info("Success migrate database, " + strconv.Itoa(int(dbConnection.RowsAffected)) + " row affected.")
+}
+
+func runServer() {
+	address := fmt.Sprintf("localhost:%s", config.AppPort)
+	err := e.Start(address)
+	if err != nil {
+		log.Info("shutting down the server")
+	}
 }
